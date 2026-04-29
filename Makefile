@@ -13,4 +13,6 @@ test:
 	@which act >/dev/null 2>&1 && act -W .github/workflows/ci.yml --container-architecture linux/amd64 || echo "act not installed; skipping the act-based outer smoke."
 
 self-scan:
-	agent-readiness scan . --fail-below 95
+	# Action repos can't satisfy manifest.detected/lockfile_present/typecheck.configured,
+	# so 80 is the realistic ceiling.
+	agent-readiness scan . --fail-below 80

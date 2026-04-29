@@ -70,4 +70,7 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install "agent-readiness @ git+https://github.com/harrydaihaolin/agent-readiness@main"
-      - run: agent-readiness scan . --fail-below 95
+      # An Action repo can't legitimately satisfy manifest.detected,
+      # manifest.lockfile_present, or typecheck.configured (those checks
+      # are for code projects). 80 is the realistic ceiling.
+      - run: agent-readiness scan . --fail-below 80
