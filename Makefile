@@ -8,8 +8,9 @@ validate:
 	@which action-validator >/dev/null 2>&1 && action-validator action.yml || echo "action-validator not installed (skipping)"
 
 test:
-	@which act >/dev/null 2>&1 || (echo "act not installed (brew install act). Skipping local test." && exit 0)
-	act -W .github/workflows/ci.yml --container-architecture linux/amd64
+	@echo "Running inner smoke fixture tests..."
+	$(MAKE) -C tests/test-good-repo test
+	@which act >/dev/null 2>&1 && act -W .github/workflows/ci.yml --container-architecture linux/amd64 || echo "act not installed; skipping the act-based outer smoke."
 
 self-scan:
 	agent-readiness scan . --fail-below 95

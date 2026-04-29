@@ -34,6 +34,13 @@ jobs:
     needs: lint
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Run inner Python make test (smoke fixture)
+        working-directory: tests/test-good-repo
+        run: make test
       - name: Run agent-readiness-action against test-good-repo
         id: ar
         uses: ./
