@@ -1,0 +1,38 @@
+name: release
+
+# Floating major-tag convention. When a vX.Y.Z tag is pushed, also
+# move (or create) the major tag (vX) so consumers that pin
+# `uses: harrydaihaolin/agent-readiness-action@v1` automatically pick
+# up minor/patch releases.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  retag-major:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute major tag
+        id: t
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          MAJOR="${TAG%%.*}"
+          echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
+          echo "major=${MAJOR}" >> "${GITHUB_OUTPUT}"
+
+      - name: Move major tag to ${{ steps.t.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          MAJOR="${{ steps.t.outputs.major }}"
+          git tag -fa "${MAJOR}" -m "Floating major tag → ${{ steps.t.outputs.tag }}"
+          git push --force origin "refs/tags/${MAJOR}"

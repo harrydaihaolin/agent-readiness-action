@@ -1,0 +1,6 @@
+*.sarif
+scan.out
+.DS_Store
+node_modules/
+.venv/
+.env

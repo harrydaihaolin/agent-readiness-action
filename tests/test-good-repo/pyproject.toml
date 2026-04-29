@@ -1,0 +1,15 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "good"
+version = "0.1.0"
+description = "Tiny good fixture for agent-readiness-action smoke tests."
+requires-python = ">=3.10"
+
+[project.scripts]
+good = "good.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/good"]

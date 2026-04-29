@@ -1,0 +1,66 @@
+name: ci
+
+# Two layers of testing:
+# 1. Lint action.yml + workflow files via actionlint.
+# 2. Run the action against tests/test-good-repo and assert it produces
+#    a non-trivial score (>= 50 — anything lower means the smoke fixture
+#    or the wrapper itself is broken).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rhysd/actionlint@v1
+        with:
+          args: action.yml .github/workflows/*.yml
+
+  smoke:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run agent-readiness-action against test-good-repo
+        id: ar
+        uses: ./
+        with:
+          path: tests/test-good-repo
+          fail-below: 50
+          json: true
+          sarif: true
+          upload-sarif: false
+      - name: Assert score is set
+        run: |
+          if [ -z "${{ steps.ar.outputs.score }}" ]; then
+            echo "Action did not emit a score output." >&2
+            exit 1
+          fi
+          echo "score=${{ steps.ar.outputs.score }}"
+
+  self-scan:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: |
+          python -m pip install --upgrade pip
+          pip install "agent-readiness @ git+https://github.com/harrydaihaolin/agent-readiness@main"
+      - run: agent-readiness scan . --fail-below 95

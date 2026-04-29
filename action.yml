@@ -1,0 +1,109 @@
+name: 'Agent Readiness'
+description: 'Score how AI-agent-ready your repo is across cognitive load, feedback, flow, and safety pillars.'
+author: 'agent-readiness contributors'
+branding:
+  icon: 'check-circle'
+  color: 'purple'
+
+inputs:
+  fail-below:
+    description: 'Fail the workflow if the overall score is below this threshold (0-100). Empty disables.'
+    required: false
+    default: ''
+  sarif:
+    description: 'Emit findings as SARIF (uploaded artifact). One of: true | false.'
+    required: false
+    default: 'false'
+  json:
+    description: 'Emit JSON report to stdout. One of: true | false.'
+    required: false
+    default: 'true'
+  baseline:
+    description: 'Path to a previous run.json for diff scoring.'
+    required: false
+    default: ''
+  path:
+    description: 'Repo path to scan (default: repo root).'
+    required: false
+    default: '.'
+  python-version:
+    description: 'Python version for the scanner.'
+    required: false
+    default: '3.11'
+  agent-readiness-version:
+    description: 'Pin a specific agent-readiness release (default: latest from PyPI).'
+    required: false
+    default: ''
+  upload-sarif:
+    description: 'When sarif=true, also upload findings.sarif to GitHub code-scanning.'
+    required: false
+    default: 'true'
+
+outputs:
+  score:
+    description: 'Overall agent-readiness score (0-100) parsed from JSON output.'
+    value: ${{ steps.scan.outputs.score }}
+  sarif-path:
+    description: 'Filesystem path to findings.sarif when sarif=true.'
+    value: ${{ steps.scan.outputs.sarif-path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: pip
+
+    - name: Install agent-readiness
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ -n "${{ inputs.agent-readiness-version }}" ]; then
+          pip install --upgrade "agent-readiness==${{ inputs.agent-readiness-version }}"
+        else
+          pip install --upgrade agent-readiness
+        fi
+        agent-readiness --version
+
+    - name: Run scan
+      id: scan
+      shell: bash
+      env:
+        AR_PATH: ${{ inputs.path }}
+        AR_FAIL_BELOW: ${{ inputs.fail-below }}
+        AR_SARIF: ${{ inputs.sarif }}
+        AR_JSON: ${{ inputs.json }}
+        AR_BASELINE: ${{ inputs.baseline }}
+      run: |
+        set -euo pipefail
+        ARGS=()
+        if [ -n "${AR_FAIL_BELOW}" ]; then
+          ARGS+=("--fail-below" "${AR_FAIL_BELOW}")
+        fi
+        if [ "${AR_SARIF}" = "true" ]; then
+          ARGS+=("--sarif" "findings.sarif")
+        fi
+        if [ "${AR_JSON}" = "true" ]; then
+          ARGS+=("--json")
+        fi
+        if [ -n "${AR_BASELINE}" ]; then
+          ARGS+=("--baseline" "${AR_BASELINE}")
+        fi
+        # Tee JSON to a file so we can parse the score for the action output.
+        agent-readiness scan "${AR_PATH}" "${ARGS[@]}" | tee scan.out
+        SCORE=""
+        if [ "${AR_JSON}" = "true" ]; then
+          SCORE=$(python -c "import json,sys; data=json.load(open('scan.out')); print(data.get('overall_score',''))" 2>/dev/null || true)
+        fi
+        echo "score=${SCORE}" >> "${GITHUB_OUTPUT}"
+        if [ "${AR_SARIF}" = "true" ]; then
+          echo "sarif-path=findings.sarif" >> "${GITHUB_OUTPUT}"
+        fi
+
+    - name: Upload SARIF
+      if: ${{ inputs.sarif == 'true' && inputs.upload-sarif == 'true' }}
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: findings.sarif
