@@ -4,7 +4,7 @@ install:
 	pip install -e .
 
 test:
-	python -m unittest discover -s tests -v
+	PYTHONPATH=src python -m unittest discover -s tests -v
 
 lint:
 	python -m compileall src
