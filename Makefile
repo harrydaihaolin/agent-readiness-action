@@ -2,7 +2,8 @@
 
 lint:
 	@which actionlint >/dev/null 2>&1 || (echo "actionlint not installed (brew install actionlint)" && exit 1)
-	actionlint action.yml .github/workflows/*.yml
+	# actionlint is a workflow linter; validate action.yml separately via `make validate`.
+	actionlint .github/workflows/*.yml
 
 validate:
 	@which action-validator >/dev/null 2>&1 && action-validator action.yml || echo "action-validator not installed (skipping)"

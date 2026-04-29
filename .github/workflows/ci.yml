@@ -29,8 +29,12 @@ jobs:
         run: |
           bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
           ./actionlint -version
-      - name: Run actionlint
-        run: ./actionlint action.yml .github/workflows/*.yml
+      - name: Run actionlint (workflows only)
+        # actionlint is a *workflow* linter and rejects the action.yml
+        # metadata schema (`description:`, `inputs:`, `runs:` etc.). The
+        # action.yml itself is validated by `action-validator` in the
+        # `validate` job below, not here.
+        run: ./actionlint .github/workflows/*.yml
 
   smoke:
     runs-on: ubuntu-latest
